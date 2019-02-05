@@ -10,6 +10,8 @@ from jeepney.low_level import HeaderFields
 from jeepney.low_level import Message, MessageType
 from jeepney.integrate.blocking import connect_and_authenticate
 from jeepney.bus_messages import DBus
+from jeepney.wrappers import new_method_return
+from jeepney.wrappers import new_error
 
 
 class DBusInterface:
