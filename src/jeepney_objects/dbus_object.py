@@ -21,7 +21,7 @@ class DBusInterface:
         return f'Methods: {self.methods}, Properties: {self.properties}'
 
 
-class DBusService:
+class DBusObject:
     def __init__(self):
         self.name = None
         self.interfaces = defaultdict(DBusInterface)
