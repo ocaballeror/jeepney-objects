@@ -27,10 +27,9 @@ class DBusObject:
     def __init__(self):
         self.name = None
         self.interfaces = defaultdict(DBusInterface)
-        self.stop = False
         self.conn = connect_and_authenticate(bus='SESSION')
         self.conn.router.on_unhandled = self.handle_msg
-        self.listen_process = Process(target=self._listen)
+        self.listen_process = None
 
     def request_name(self, name):
         dbus = DBus()
@@ -40,9 +39,6 @@ class DBusObject:
         self.name = name
 
     def release_name(self):
-        if self.listen_process.is_alive():
-            self.listen_process.terminate()
-
         reply = self.conn.send_and_get_reply(DBus().ReleaseName(self.name))
         if reply != (1,):
             warnings.warn('Error releasing name')
@@ -83,13 +79,18 @@ class DBusObject:
     def _listen(self):
         asyncio.set_event_loop(asyncio.new_event_loop())
         while True:
-            self.conn.recv_messages()
+            try:
+                self.conn.recv_messages()
+            except Exception as e:
+                pass
 
     def listen(self):
+        self.listen_process = Process(target=self._listen)
         self.listen_process.start()
 
     def stop(self):
-        self.listen_process.terminate()
+        if self.listen_process and self.listen_process.is_alive():
+            self.listen_process.terminate()
 
     def _handle_property_msg(self, msg):
         hdr = msg.header
