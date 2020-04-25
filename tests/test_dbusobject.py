@@ -1,6 +1,7 @@
 from functools import partial
 
 import pytest
+from pytest_cov.embed import cleanup_on_sigterm
 from jeepney import DBusAddress
 from jeepney.bus_messages import DBus
 from jeepney.wrappers import new_method_call
@@ -13,6 +14,7 @@ from jeepney_objects import DBusObject
 
 @pytest.fixture
 def dbus_service(request):
+    cleanup_on_sigterm()
     service = DBusObject()
     try:
         service.request_name(request.param)
