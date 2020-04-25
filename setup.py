@@ -28,4 +28,8 @@ setup(
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     python_requires='>=3.5',
     install_requires=['jeepney'],
+    tests_require=[
+        'pytest',
+        'pytest-cov',
+    ],
 )
