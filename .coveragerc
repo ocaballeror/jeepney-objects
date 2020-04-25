@@ -1,0 +1,11 @@
+[paths]
+source =
+    src/jeepney_objects
+    .tox/*/lib/python*/site-packages/jeepney_objects
+
+[run]
+branch = True
+source = jeepney_objects
+
+[report]
+show_missing = True
