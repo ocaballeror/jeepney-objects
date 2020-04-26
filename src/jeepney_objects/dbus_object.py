@@ -3,9 +3,9 @@ Functions to test dbus-related functionality.
 """
 import logging
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from multiprocessing import Process
-from typing import Tuple
+from typing import Tuple, Dict, Callable
 
 from jeepney.low_level import HeaderFields
 from jeepney.low_level import Message, MessageType
@@ -23,16 +23,15 @@ class DBusProperty:
     access: str = 'readwrite'
 
 
+@dataclass
 class DBusInterface:
     """
     Represents a DBus interface as a list of methods and properties.
     """
-    def __init__(self):
-        self.methods = {}
-        self.properties = {}
-
-    def __repr__(self):
-        return f'Methods: {self.methods}, Properties: {self.properties}'
+    name: str
+    methods: Dict[str, Callable] = field(default_factory=lambda: {})
+    properties: Dict[Tuple[str, str], DBusProperty] = \
+        field(default_factory=lambda: {})
 
 
 class DBusObject:
