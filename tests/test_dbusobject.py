@@ -14,11 +14,12 @@ from jeepney_objects import DBusProperty
 
 
 @pytest.fixture
-def dbus_service(request):
+def dbus_service():
     cleanup_on_sigterm()
+    name = 'com.example.object'
     service = DBusObject()
     try:
-        service.request_name(request.param)
+        service.request_name(name)
     except RuntimeError:
         pytest.skip("Can't get the requested name")
 
@@ -28,7 +29,6 @@ def dbus_service(request):
         service.stop()
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_basic_init(dbus_service):
     """
     Check that we can successfully initialize and register an object.
@@ -36,12 +36,11 @@ def test_basic_init(dbus_service):
     assert dbus_service
 
     conn = connect_and_authenticate()
-    msg = DBus().NameHasOwner('com.example.object')
+    msg = DBus().NameHasOwner(dbus_service.name)
     response = conn.send_and_get_reply(msg)
     assert response == (1,)
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_method_call(dbus_service):
     """
     Register and call methods on a dbus object.
@@ -50,11 +49,10 @@ def test_object_method_call(dbus_service):
         return 's', (body, )
 
     interface = 'com.example.interface1'
-    object_path = 'com.example.object'
-    add0 = DBusAddress('/path', object_path)
-    add1 = DBusAddress('/path/subpath', object_path)
-    add2 = DBusAddress('/path', object_path, interface=interface)
-    add3 = DBusAddress('/path/subpath', object_path, interface=interface)
+    add0 = DBusAddress('/path', dbus_service.name)
+    add1 = DBusAddress('/path/subpath', dbus_service.name)
+    add2 = DBusAddress('/path', dbus_service.name, interface=interface)
+    add3 = DBusAddress('/path/subpath', dbus_service.name, interface=interface)
 
     hello0 = partial(str_response, body='Hello0')
     hello1 = partial(str_response, body='Hello1')
@@ -79,7 +77,6 @@ def test_object_method_call(dbus_service):
     assert response == ('Hello3', )
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_method_call_args(dbus_service):
     """
     Set a method handler that can take arguments and verify that we can call
@@ -89,11 +86,10 @@ def test_object_method_call_args(dbus_service):
         return ('s', (arg,))
 
     path = '/path'
-    object_path = 'com.example.object'
     dbus_service.set_handler(path, 'ping', mirror)
     dbus_service.listen()
 
-    addr = DBusAddress('/path', object_path)
+    addr = DBusAddress('/path', dbus_service.name)
     conn = connect_and_authenticate()
     response = conn.send_and_get_reply(
         new_method_call(addr, 'ping', 's', ('Repeat after me',))
@@ -102,13 +98,11 @@ def test_object_method_call_args(dbus_service):
 
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_wrong_method_call(dbus_service):
     """
     Try to call an inexistent method and verify that an error is returned.
     """
-    object_path = 'com.example.object'
-    addr = DBusAddress('/path', object_path)
+    addr = DBusAddress('/path', dbus_service.name)
 
     dbus_service.listen()
     conn = connect_and_authenticate()
@@ -118,15 +112,13 @@ def test_object_wrong_method_call(dbus_service):
     assert err.value.data == ("Unregistered method: 'some_method'",)
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_get_property(dbus_service):
     """
     Set and get properties from a dbus object.
     """
     interface = 'com.example.interface1'
-    object_path = 'com.example.object'
-    add0 = DBusAddress('/path', object_path, interface=interface)
-    add1 = DBusAddress('/path/subpath', object_path, interface=interface)
+    add0 = DBusAddress('/path', dbus_service.name, interface=interface)
+    add1 = DBusAddress('/path/subpath', dbus_service.name, interface=interface)
 
     dbus_service.set_property(add0.object_path, 'prop0', 's', ('hello0',),
                               add0.interface)
@@ -142,14 +134,12 @@ def test_object_get_property(dbus_service):
     assert response == ('hello1', )
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_get_all_properties(dbus_service):
     """
     Get all properties from a dbus object.
     """
     interface = 'com.example.interface1'
-    object_path = 'com.example.object'
-    addr = DBusAddress('/path', object_path, interface=interface)
+    addr = DBusAddress('/path', dbus_service.name, interface=interface)
 
     dbus_service.set_property(addr.object_path, 'prop0', 's', 'hello0',
                               addr.interface)
@@ -167,14 +157,12 @@ def test_object_get_all_properties(dbus_service):
                          ('prop2', ('s', 'hello2'))], )
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_wrong_property(dbus_service):
     """
     Try to get an inexistent property and verify that an error is returned.
     """
-    object_path = 'com.example.object'
     interface = 'com.example.interface1'
-    addr = DBusAddress('/path', object_path, interface=interface)
+    addr = DBusAddress('/path', dbus_service.name, interface=interface)
 
     dbus_service.listen()
     conn = connect_and_authenticate()
@@ -182,7 +170,6 @@ def test_object_wrong_property(dbus_service):
         conn.send_and_get_reply(Properties(addr).get('prop'))
 
 
-@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_set_readonly_property(dbus_service):
     """
     Try to set the value for a readonly property and check that a permissions
