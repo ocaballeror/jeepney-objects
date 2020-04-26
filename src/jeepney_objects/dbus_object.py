@@ -159,7 +159,7 @@ class DBusObject:
             # This probably means the name has already been released
             self.name = None
         except Exception as e:
-            print('Error releasing name', type(e), e)
+            logging.exception('Error releasing name %s', e)
             raise
         self.name = None
 
@@ -171,7 +171,8 @@ class DBusObject:
         while True:
             try:
                 self.conn.recv_messages()
-            except Exception:
+            except Exception as err:
+                logging.exception('Error receiving messages %s', err)
                 pass
 
     def listen(self):
