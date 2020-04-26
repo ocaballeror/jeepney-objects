@@ -10,6 +10,7 @@ from jeepney.wrappers import DBusErrorResponse
 from jeepney.integrate.blocking import connect_and_authenticate
 
 from jeepney_objects import DBusObject
+from jeepney_objects import DBusInterface
 from jeepney_objects import DBusProperty
 
 
@@ -49,20 +50,14 @@ def test_object_method_call(dbus_service):
         return 's', (body, )
 
     interface = 'com.example.interface1'
-    add0 = DBusAddress('/path', dbus_service.name)
-    add1 = DBusAddress('/path/subpath', dbus_service.name)
-    add2 = DBusAddress('/path', dbus_service.name, interface=interface)
-    add3 = DBusAddress('/path/subpath', dbus_service.name, interface=interface)
+    add0 = DBusAddress('/path', dbus_service.name, interface)
+    add1 = DBusAddress('/path/subpath', dbus_service.name, interface)
 
     hello0 = partial(str_response, body='Hello0')
     hello1 = partial(str_response, body='Hello1')
-    hello2 = partial(str_response, body='Hello2')
-    hello3 = partial(str_response, body='Hello3')
 
-    dbus_service.set_handler(add0.object_path, 'hello0', hello0)
-    dbus_service.set_handler(add1.object_path, 'hello1', hello1)
-    dbus_service.set_handler(add2.object_path, 'hello2', hello2, interface)
-    dbus_service.set_handler(add3.object_path, 'hello3', hello3, interface)
+    dbus_service.set_handler(add0.object_path, interface, 'hello0', hello0)
+    dbus_service.set_handler(add1.object_path, interface, 'hello1', hello1)
 
     dbus_service.listen()
     conn = connect_and_authenticate()
@@ -71,10 +66,6 @@ def test_object_method_call(dbus_service):
     assert response == ('Hello0', )
     response = conn.send_and_get_reply(new_method_call(add1, 'hello1'))
     assert response == ('Hello1', )
-    response = conn.send_and_get_reply(new_method_call(add2, 'hello2'))
-    assert response == ('Hello2', )
-    response = conn.send_and_get_reply(new_method_call(add3, 'hello3'))
-    assert response == ('Hello3', )
 
 
 def test_object_method_call_args(dbus_service):
@@ -86,10 +77,11 @@ def test_object_method_call_args(dbus_service):
         return ('s', (arg,))
 
     path = '/path'
-    dbus_service.set_handler(path, 'ping', mirror)
+    iface = 'inter.face'
+    dbus_service.set_handler(path, iface, 'ping', mirror)
     dbus_service.listen()
 
-    addr = DBusAddress('/path', dbus_service.name)
+    addr = DBusAddress(path, dbus_service.name)
     conn = connect_and_authenticate()
     response = conn.send_and_get_reply(
         new_method_call(addr, 'ping', 's', ('Repeat after me',))
@@ -119,10 +111,10 @@ def test_object_get_property(dbus_service):
     add0 = DBusAddress('/path', dbus_service.name, interface=interface)
     add1 = DBusAddress('/path/subpath', dbus_service.name, interface=interface)
 
-    dbus_service.set_property(add0.object_path, 'prop0', 's', ('hello0',),
-                              add0.interface)
-    dbus_service.set_property(add1.object_path, 'prop1', 's', ('hello1',),
-                              add1.interface)
+    dbus_service.set_property(add0.object_path, add0.interface,
+                              'prop0', 's', ('hello0',))
+    dbus_service.set_property(add1.object_path, add1.interface,
+                              'prop1', 's', ('hello1',))
 
     dbus_service.listen()
     conn = connect_and_authenticate()
@@ -140,12 +132,12 @@ def test_object_get_all_properties(dbus_service):
     interface = 'com.example.interface1'
     addr = DBusAddress('/path', dbus_service.name, interface=interface)
 
-    dbus_service.set_property(addr.object_path, 'prop0', 's', 'hello0',
-                              addr.interface)
-    dbus_service.set_property(addr.object_path, 'prop1', 's', 'hello1',
-                              addr.interface)
-    dbus_service.set_property(addr.object_path, 'prop2', 's', 'hello2',
-                              addr.interface)
+    dbus_service.set_property(addr.object_path, addr.interface,
+                              'prop0', 's', 'hello0')
+    dbus_service.set_property(addr.object_path, addr.interface,
+                              'prop1', 's', 'hello1')
+    dbus_service.set_property(addr.object_path, addr.interface,
+                              'prop2', 's', 'hello2')
 
     dbus_service.listen()
     conn = connect_and_authenticate()
@@ -177,14 +169,15 @@ def test_object_set_readonly_property(dbus_service):
     name = 'someprop'
     value = ('somevalue',)
     path = '/'
-    interface = 'some.interface'
     prop = DBusProperty(name, 's', value, access='read')
-    dbus_service.interfaces[(path, interface)].properties[name] = prop
+    interface = DBusInterface('some.interface', properties={name: prop})
+    dbus_service.interfaces[(path, interface.name)] = interface
     dbus_service.listen()
 
     conn = connect_and_authenticate()
-    addr = DBusAddress(path, dbus_service.name, interface)
+    addr = DBusAddress(path, dbus_service.name, interface.name)
     msg = Properties(addr).set(name, 's', 'anothervalue')
+
     with pytest.raises(DBusErrorResponse) as err:
         conn.send_and_get_reply(msg)
     assert err.value.name == 'com.example.object.exceptions.PermissionError'
