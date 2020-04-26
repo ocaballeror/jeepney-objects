@@ -3,7 +3,9 @@ Functions to test dbus-related functionality.
 """
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from multiprocessing import Process
+from typing import Tuple
 
 from jeepney.low_level import HeaderFields
 from jeepney.low_level import Message, MessageType
@@ -11,6 +13,14 @@ from jeepney.integrate.blocking import connect_and_authenticate
 from jeepney.bus_messages import DBus
 from jeepney.wrappers import new_error
 from jeepney.wrappers import new_method_return
+
+
+@dataclass
+class DBusProperty:
+    name: str
+    signature: str
+    value: Tuple
+    access: str = 'readwrite'
 
 
 class DBusInterface:
@@ -108,7 +118,16 @@ class DBusObject:
             path, prop_name, interface, signature, value
         )
         addr = (path, interface)
-        self.interfaces[addr].properties[prop_name] = (signature, value)
+        props = self.interfaces[addr].properties
+        if prop_name in props:
+            prop = props[prop_name]
+            if prop.access == 'read':
+                raise PermissionError(f"{prop_name}: Property not settable")
+            prop.signature = signature
+            prop.value = value
+        else:
+            newprop = DBusProperty(prop_name, signature, value)
+            props[prop_name] = newprop
 
     def get_property(self, path, prop_name, interface=None):
         logging.debug(
@@ -116,12 +135,12 @@ class DBusObject:
             path, prop_name, interface
         )
         addr = (path, interface)
-        if prop_name not in self.interfaces[addr].properties:
+        props = self.interfaces[addr].properties
+        if prop_name not in props:
             err = f"Property '{prop_name}' not registered on this interface"
             raise KeyError(err)
 
-        signature, value = self.interfaces[addr].properties[prop_name]
-        return signature, value
+        return props[prop_name].signature, props[prop_name].value
 
     def get_all_properties(self, path, interface):
         logging.debug(
@@ -129,7 +148,9 @@ class DBusObject:
             path, interface
         )
         addr = (path, interface)
-        return (list(self.interfaces[addr].properties.items()),)
+        props = self.interfaces[addr].properties
+        items = [(k, (v.signature, v.value)) for k, v in props.items()]
+        return (items,)
 
     def _listen(self):
         logging.info('Starting service %s', self.name)
@@ -163,7 +184,7 @@ class DBusObject:
                 _, prop_name = msg.body
                 signature, value = self.get_property(path, prop_name, iface)
                 return new_method_return(msg, signature, value)
-            except KeyError as error:
+            except Exception as error:
                 return self.new_error(msg, error)
         elif method == 'Set':
             _, prop_name, (signature, value) = msg.body
