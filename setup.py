@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='jeepney_objects',
-    version='v0.1.0',
+    version='v0.2.0',
     description='Publish and manage pure python DBus objects',
     long_description='Publish and manage pure python DBus objects',
     url='https://github.com/ocaballeror/jeepney-objects',
