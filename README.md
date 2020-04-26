@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ocaballeror/jeepney-objects.svg?branch=master)](https://travis-ci.org/ocaballeror/jeepney-objects)
+
 # Jeepney Objects
 
 Create and publish DBus objects using the
