@@ -211,5 +211,4 @@ class DBusObject:
                 response.header.fields[HeaderFields.destination] = sender
                 response.header.fields[HeaderFields.sender] = self.name
                 logging.debug('Sending response %s', response)
-                return self.conn.send_message(response)
-        return msg
+                self.conn.send_message(response)
