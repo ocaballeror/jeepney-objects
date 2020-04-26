@@ -43,8 +43,8 @@ dbobject.listen()
 from jeepney.integrate.blocking import connect_and_authenticate
 from jeepney.wrappers import new_method_call
 conn = connect_and_authenticate()
-address = DBusAddress(path, busname)
-response = conn.send_and_get_reply(new_method_call(address, 'greetme'))
+msg = new_method_call(DBusAddress(path, busname), 'greetme')
+response = conn.send_and_get_reply(msg)
 print(response)  # prints: ('hello world',)
 
 # stop the service and release the name
