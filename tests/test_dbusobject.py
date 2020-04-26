@@ -10,6 +10,7 @@ from jeepney.wrappers import DBusErrorResponse
 from jeepney.integrate.blocking import connect_and_authenticate
 
 from jeepney_objects import DBusObject
+from jeepney_objects import DBusProperty
 
 
 @pytest.fixture
@@ -179,3 +180,28 @@ def test_object_wrong_property(dbus_service):
     conn = connect_and_authenticate()
     with pytest.raises(DBusErrorResponse):
         conn.send_and_get_reply(Properties(addr).get('prop'))
+
+
+@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
+def test_object_set_readonly_property(dbus_service):
+    """
+    Try to set the value for a readonly property and check that a permissions
+    error is returned.
+    """
+    name = 'someprop'
+    value = ('somevalue',)
+    path = '/'
+    interface = 'some.interface'
+    prop = DBusProperty(name, 's', value, access='read')
+    dbus_service.interfaces[(path, interface)].properties[name] = prop
+    dbus_service.listen()
+
+    conn = connect_and_authenticate()
+    addr = DBusAddress(path, dbus_service.name, interface)
+    msg = Properties(addr).set(name, 's', 'anothervalue')
+    with pytest.raises(DBusErrorResponse) as err:
+        conn.send_and_get_reply(msg)
+    assert err.value.name == 'com.example.object.exceptions.PermissionError'
+    assert err.value.data == (f'{name}: Property not settable',)
+    # check that the original property hasn't changed
+    assert prop.value == value

@@ -1,1 +1,1 @@
-from .dbus_object import DBusObject, DBusInterface
+from .dbus_object import DBusObject, DBusInterface, DBusProperty
