@@ -1,7 +1,6 @@
 """
 Functions to test dbus-related functionality.
 """
-import asyncio
 from collections import defaultdict
 from multiprocessing import Process
 
@@ -84,7 +83,6 @@ class DBusObject:
         return (list(self.interfaces[addr].properties.items()),)
 
     def _listen(self):
-        asyncio.set_event_loop(asyncio.new_event_loop())
         while True:
             try:
                 self.conn.recv_messages()
