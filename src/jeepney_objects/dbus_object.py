@@ -180,38 +180,26 @@ class DBusObject:
         method = hdr.fields[HeaderFields.member]
         iface = msg.body[0]
         if method == 'Get':
-            try:
-                _, prop_name = msg.body
-                signature, value = self.get_property(path, prop_name, iface)
-                return new_method_return(msg, signature, value)
-            except Exception as error:
-                return self.new_error(msg, error)
+            _, prop_name = msg.body
+            signature, value = self.get_property(path, prop_name, iface)
+            return new_method_return(msg, signature, value)
         elif method == 'Set':
             _, prop_name, (signature, value) = msg.body
             self.set_property(path, prop_name, signature, value, iface)
         elif method == 'GetAll':
-            try:
-                properties = self.get_all_properties(path, iface)
-                return new_method_return(msg, 'a{sv}', properties)
-            except KeyError as error:
-                return self.new_error(msg, error)
-
-        return None
+            properties = self.get_all_properties(path, iface)
+            return new_method_return(msg, 'a{sv}', properties)
 
     def _handle_method_call(self, msg):
         hdr = msg.header
         path = hdr.fields[HeaderFields.path]
         method = hdr.fields[HeaderFields.member]
         iface = hdr.fields.get(HeaderFields.interface, None)
-        try:
-            method = self.get_handler(path, method, iface)
-            args = msg.body
-            signature, body = method(*args)
-            return new_method_return(msg, signature, body)
-        except Exception as error:
-            return self.new_error(msg, error)
 
-        return None
+        method = self.get_handler(path, method, iface)
+        args = msg.body
+        signature, body = method(*args)
+        return new_method_return(msg, signature, body)
 
     def handle_msg(self, msg):
         logging.debug('Received message %s', msg)
@@ -219,11 +207,14 @@ class DBusObject:
         if not hdr.message_type == MessageType.method_call:
             return
 
-        iface = hdr.fields.get(HeaderFields.interface, None)
-        if iface == 'org.freedesktop.DBus.Properties':
-            response = self._handle_property_msg(msg)
-        else:
-            response = self._handle_method_call(msg)
+        try:
+            iface = hdr.fields.get(HeaderFields.interface, None)
+            if iface == 'org.freedesktop.DBus.Properties':
+                response = self._handle_property_msg(msg)
+            else:
+                response = self._handle_method_call(msg)
+        except Exception as error:
+            response = self.new_error(msg, error)
 
         if isinstance(response, Message):
             msg_type = response.header.message_type
