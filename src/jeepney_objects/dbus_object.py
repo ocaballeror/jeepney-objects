@@ -34,6 +34,63 @@ class DBusInterface:
         field(default_factory=lambda: {})
 
 
+    def set_handler(self, method_name, handler):
+        """
+        Create a new method and set a handler for it.
+        """
+        logging.debug('set_handler name=%s', method_name)
+        self.methods[method_name] = handler
+
+    def get_handler(self, method_name):
+        """
+        Retrieve the handler for a specific method.
+        """
+        logging.debug('get_handler name=%s', method_name)
+        if method_name in self.methods:
+            return self.methods[method_name]
+        raise KeyError(f"Unregistered method: '{method_name}'")
+
+    def set_property(self, prop_name, signature, value):
+        """
+        Set the value of an existing property, or create a new one if it
+        doesn't already exist.
+        """
+        logging.debug(
+            'set_property name=%s, signature=%s, value=%s',
+            prop_name, signature, value
+        )
+        if prop_name in self.properties:
+            prop = self.properties[prop_name]
+            if prop.access == 'read':
+                raise PermissionError(f"{prop_name}: Property not settable")
+            prop.signature = signature
+            prop.value = value
+        else:
+            newprop = DBusProperty(prop_name, signature, value)
+            self.properties[prop_name] = newprop
+
+    def get_property(self, prop_name):
+        """
+        Get the value of a property. Raises a KeyError if it doesn't exist.
+        """
+        logging.debug('get_property name=%s', prop_name)
+        if prop_name not in self.properties:
+            err = f"Property '{prop_name}' not registered on this interface"
+            raise KeyError(err)
+
+        prop = self.properties[prop_name]
+        return prop.signature, prop.value
+
+    def get_all_properties(self):
+        """
+        Get all properties in this interface.
+        """
+        logging.debug('get_all_properties')
+        props = self.properties
+        items = [(k, (v.signature, v.value)) for k, v in props.items()]
+        return (items,)
+
+
 class DBusObject:
     """
     Main DBusObject class. Contains a list of DBusInterfaces, which in turn
@@ -45,7 +102,7 @@ class DBusObject:
     """
     def __init__(self):
         self.name = None
-        self.interfaces = defaultdict(DBusInterface)
+        self.interfaces = {}
         self.conn = connect_and_authenticate(bus='SESSION')
         self.conn.router.on_unhandled = self.handle_msg
         self.listen_process = None
@@ -107,84 +164,6 @@ class DBusObject:
             raise
         self.name = None
 
-    def set_handler(self, path, method_name, handler, interface=None):
-        """
-        Create a new method and set a handler for it.
-        """
-        addr = (path, interface)
-        logging.debug('set_handler path=%s, name=%s, iface=%s', path,
-                      method_name, interface)
-        self.interfaces[addr].methods[method_name] = handler
-
-    def get_handler(self, path, method_name, interface=None):
-        """
-        Retrieve the handler for a specific method.
-        """
-        addr = (path, interface)
-        logging.debug('get_handler path=%s, name=%s, iface=%s', path,
-                      method_name, interface)
-        if interface is None:
-            method = self.interfaces[addr].methods.get(method_name, None)
-            if method:
-                return method
-            for i_addr, iface in self.interfaces.items():
-                if i_addr[0] == path and method_name in iface.methods:
-                    return iface.methods[method_name]
-        else:
-            if method_name in self.interfaces[addr].methods:
-                return self.interfaces[addr].methods[method_name]
-        raise KeyError(f"Unregistered method: '{method_name}'")
-
-    def set_property(self, path, prop_name, signature, value, interface=None):
-        """
-        Set the value of an existing property, or create a new one if it
-        doesn't already exist.
-        """
-        logging.debug(
-            'set_property path=%s, name=%s, iface=%s, signature=%s, value=%s',
-            path, prop_name, interface, signature, value
-        )
-        addr = (path, interface)
-        props = self.interfaces[addr].properties
-        if prop_name in props:
-            prop = props[prop_name]
-            if prop.access == 'read':
-                raise PermissionError(f"{prop_name}: Property not settable")
-            prop.signature = signature
-            prop.value = value
-        else:
-            newprop = DBusProperty(prop_name, signature, value)
-            props[prop_name] = newprop
-
-    def get_property(self, path, prop_name, interface=None):
-        """
-        Get the value of a property. Raises a KeyError if it doesn't exist.
-        """
-        logging.debug(
-            'get_property path=%s, name=%s, iface=%s',
-            path, prop_name, interface
-        )
-        addr = (path, interface)
-        props = self.interfaces[addr].properties
-        if prop_name not in props:
-            err = f"Property '{prop_name}' not registered on this interface"
-            raise KeyError(err)
-
-        return props[prop_name].signature, props[prop_name].value
-
-    def get_all_properties(self, path, interface):
-        """
-        Get all properties in the specified path/interface.
-        """
-        logging.debug(
-            'get_all_properties path=%s, interface=%s',
-            path, interface
-        )
-        addr = (path, interface)
-        props = self.interfaces[addr].properties
-        items = [(k, (v.signature, v.value)) for k, v in props.items()]
-        return (items,)
-
     def _listen(self):
         """
         Continuously listen for new messages to this object.
@@ -218,6 +197,20 @@ class DBusObject:
         if self.listen_process and self.listen_process.is_alive():
             self.listen_process.terminate()
 
+    def set_property(self, path, interface, prop_name, signature, value):
+        key = (path, interface)
+        if key not in self.interfaces:
+            logging.debug('New interface at %s', key)
+            self.interfaces[key] = DBusInterface(interface)
+        self.interfaces[key].set_property(prop_name, signature, value)
+
+    def set_handler(self, path, interface, method_name, method):
+        key = (path, interface)
+        if key not in self.interfaces:
+            logging.debug('New interface at %s', key)
+            self.interfaces[key] = DBusInterface(interface)
+        self.interfaces[key].set_handler(method_name, method)
+
     def _handle_property_msg(self, msg):
         """
         Handle a property get/set call. Returns a response message if
@@ -226,16 +219,18 @@ class DBusObject:
         hdr = msg.header
         path = hdr.fields[HeaderFields.path]
         method = hdr.fields[HeaderFields.member]
-        iface = msg.body[0]
+        body = list(msg.body)
+        iface_name = body.pop(0)
+        iface = self.interfaces[(path, iface_name)]
         if method == 'Get':
-            _, prop_name = msg.body
-            signature, value = self.get_property(path, prop_name, iface)
+            prop_name = body[0]
+            signature, value = iface.get_property(prop_name)
             return new_method_return(msg, signature, value)
         elif method == 'Set':
-            _, prop_name, (signature, value) = msg.body
-            self.set_property(path, prop_name, signature, value, iface)
+            prop_name, (signature, value) = body
+            iface.set_property(prop_name, signature, value)
         elif method == 'GetAll':
-            properties = self.get_all_properties(path, iface)
+            properties = iface.get_all_properties()
             return new_method_return(msg, 'a{sv}', properties)
 
     def _handle_method_call(self, msg):
@@ -244,10 +239,19 @@ class DBusObject:
         """
         hdr = msg.header
         path = hdr.fields[HeaderFields.path]
-        method = hdr.fields[HeaderFields.member]
+        method_name = hdr.fields[HeaderFields.member]
         iface = hdr.fields.get(HeaderFields.interface, None)
 
-        method = self.get_handler(path, method, iface)
+        if iface is not None:
+            method = self.interfaces[(path, iface)].get_handler(method_name)
+        else:
+            for (it_path, iface_name), iface in self.interfaces.items():
+                if it_path == path and method_name in iface.methods:
+                    method = iface.methods[method_name]
+                    break
+            else:
+                raise KeyError(f"Unregistered method: '{method_name}'")
+
         args = msg.body
         signature, body = method(*args)
         return new_method_return(msg, signature, body)
