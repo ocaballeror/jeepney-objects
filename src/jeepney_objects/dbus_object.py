@@ -1,6 +1,7 @@
 """
 Functions to test dbus-related functionality.
 """
+import logging
 from collections import defaultdict
 from multiprocessing import Process
 
@@ -61,12 +62,14 @@ class DBusObject:
 
     def request_name(self, name):
         dbus = DBus()
+        logging.info('Requesting name %s', name)
         reply = self.conn.send_and_get_reply(dbus.RequestName(name))
         if reply != (1,):
             raise RuntimeError("Couldn't get requested name")
         self.name = name
 
     def release_name(self):
+        logging.info('Releasing name %s', self.name)
         try:
             self.conn.send_message(DBus().ReleaseName(self.name))
         except OSError:
@@ -79,10 +82,14 @@ class DBusObject:
 
     def set_handler(self, path, method_name, handler, interface=None):
         addr = (path, interface)
+        logging.debug('set_handler path=%s, name=%s, iface=%s', path,
+                      method_name, interface)
         self.interfaces[addr].methods[method_name] = handler
 
     def get_handler(self, path, method_name, interface=None):
         addr = (path, interface)
+        logging.debug('get_handler path=%s, name=%s, iface=%s', path,
+                      method_name, interface)
         if interface is None:
             method = self.interfaces[addr].methods.get(method_name, None)
             if method:
@@ -96,10 +103,18 @@ class DBusObject:
         raise KeyError(f"Unregistered method: '{method_name}'")
 
     def set_property(self, path, prop_name, signature, value, interface=None):
+        logging.debug(
+            'set_property path=%s, name=%s, iface=%s, signature=%s, value=%s',
+            path, prop_name, interface, signature, value
+        )
         addr = (path, interface)
         self.interfaces[addr].properties[prop_name] = (signature, value)
 
     def get_property(self, path, prop_name, interface=None):
+        logging.debug(
+            'get_property path=%s, name=%s, iface=%s',
+            path, prop_name, interface
+        )
         addr = (path, interface)
         if prop_name not in self.interfaces[addr].properties:
             err = f"Property '{prop_name}' not registered on this interface"
@@ -109,10 +124,15 @@ class DBusObject:
         return signature, value
 
     def get_all_properties(self, path, interface):
+        logging.debug(
+            'get_all_properties path=%s, interface=%s',
+            path, interface
+        )
         addr = (path, interface)
         return (list(self.interfaces[addr].properties.items()),)
 
     def _listen(self):
+        logging.info('Starting service %s', self.name)
         while True:
             try:
                 self.conn.recv_messages()
@@ -124,6 +144,7 @@ class DBusObject:
         self.listen_process.start()
 
     def stop(self):
+        logging.info('Stopping service %s', self.name)
         if self.name:
             try:
                 self.release_name()
@@ -172,6 +193,7 @@ class DBusObject:
         return None
 
     def handle_msg(self, msg):
+        logging.debug('Received message %s', msg)
         hdr = msg.header
         if not hdr.message_type == MessageType.method_call:
             return
@@ -188,5 +210,6 @@ class DBusObject:
                 sender = msg.header.fields[HeaderFields.sender]
                 response.header.fields[HeaderFields.destination] = sender
                 response.header.fields[HeaderFields.sender] = self.name
+                logging.debug('Sending response %s', response)
                 return self.conn.send_message(response)
         return msg
