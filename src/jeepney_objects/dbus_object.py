@@ -24,6 +24,9 @@ class DBusProperty:
 
 
 class DBusInterface:
+    """
+    Represents a DBus interface as a list of methods and properties.
+    """
     def __init__(self):
         self.methods = {}
         self.properties = {}
@@ -33,6 +36,14 @@ class DBusInterface:
 
 
 class DBusObject:
+    """
+    Main DBusObject class. Contains a list of DBusInterfaces, which in turn
+    have all the methods and properties.
+
+    Also includes the necessary functions to publish the object on the system
+    bus, listen for incoming messages and handle property access and method
+    calls.
+    """
     def __init__(self):
         self.name = None
         self.interfaces = defaultdict(DBusInterface)
@@ -42,8 +53,8 @@ class DBusObject:
 
     def new_error(self, parent, body=None, signature=None, error_name='err'):
         """
-        Wrapper around jeepney's new_error that sets a valid error name and some
-        sensible defaults.
+        Wrapper around jeepney's new_error that sets a valid error name and
+        some sensible defaults.
 
         Body can be an exception class or a simple string instead of a tuple,
         and the signature defaults to 's'.
@@ -71,6 +82,10 @@ class DBusObject:
         return new_error(parent, error_name, signature, body)
 
     def request_name(self, name):
+        """
+        Reserve a name on the system bus. Raises a RuntimeError if the name is
+        already in use.
+        """
         dbus = DBus()
         logging.info('Requesting name %s', name)
         reply = self.conn.send_and_get_reply(dbus.RequestName(name))
@@ -79,6 +94,9 @@ class DBusObject:
         self.name = name
 
     def release_name(self):
+        """
+        Release the reserved name for this object.
+        """
         logging.info('Releasing name %s', self.name)
         try:
             self.conn.send_message(DBus().ReleaseName(self.name))
@@ -91,12 +109,18 @@ class DBusObject:
         self.name = None
 
     def set_handler(self, path, method_name, handler, interface=None):
+        """
+        Create a new method and set a handler for it.
+        """
         addr = (path, interface)
         logging.debug('set_handler path=%s, name=%s, iface=%s', path,
                       method_name, interface)
         self.interfaces[addr].methods[method_name] = handler
 
     def get_handler(self, path, method_name, interface=None):
+        """
+        Retrieve the handler for a specific method.
+        """
         addr = (path, interface)
         logging.debug('get_handler path=%s, name=%s, iface=%s', path,
                       method_name, interface)
@@ -113,6 +137,10 @@ class DBusObject:
         raise KeyError(f"Unregistered method: '{method_name}'")
 
     def set_property(self, path, prop_name, signature, value, interface=None):
+        """
+        Set the value of an existing property, or create a new one if it
+        doesn't already exist.
+        """
         logging.debug(
             'set_property path=%s, name=%s, iface=%s, signature=%s, value=%s',
             path, prop_name, interface, signature, value
@@ -130,6 +158,9 @@ class DBusObject:
             props[prop_name] = newprop
 
     def get_property(self, path, prop_name, interface=None):
+        """
+        Get the value of a property. Raises a KeyError if it doesn't exist.
+        """
         logging.debug(
             'get_property path=%s, name=%s, iface=%s',
             path, prop_name, interface
@@ -143,6 +174,9 @@ class DBusObject:
         return props[prop_name].signature, props[prop_name].value
 
     def get_all_properties(self, path, interface):
+        """
+        Get all properties in the specified path/interface.
+        """
         logging.debug(
             'get_all_properties path=%s, interface=%s',
             path, interface
@@ -153,6 +187,9 @@ class DBusObject:
         return (items,)
 
     def _listen(self):
+        """
+        Continuously listen for new messages to this object.
+        """
         logging.info('Starting service %s', self.name)
         while True:
             try:
@@ -161,10 +198,18 @@ class DBusObject:
                 pass
 
     def listen(self):
+        """
+        Start the service and make the DBus object available and listening for
+        messages.
+        """
         self.listen_process = Process(target=self._listen)
         self.listen_process.start()
 
     def stop(self):
+        """
+        Stop the service. Release the name for this object and stop listening
+        for new messages.
+        """
         logging.info('Stopping service %s', self.name)
         if self.name:
             try:
@@ -175,6 +220,10 @@ class DBusObject:
             self.listen_process.terminate()
 
     def _handle_property_msg(self, msg):
+        """
+        Handle a property get/set call. Returns a response message if
+        applicable.
+        """
         hdr = msg.header
         path = hdr.fields[HeaderFields.path]
         method = hdr.fields[HeaderFields.member]
@@ -191,6 +240,9 @@ class DBusObject:
             return new_method_return(msg, 'a{sv}', properties)
 
     def _handle_method_call(self, msg):
+        """
+        Handle a method call. Returns the response as a new message.
+        """
         hdr = msg.header
         path = hdr.fields[HeaderFields.path]
         method = hdr.fields[HeaderFields.member]
@@ -202,6 +254,13 @@ class DBusObject:
         return new_method_return(msg, signature, body)
 
     def handle_msg(self, msg):
+        """
+        Main message handler. This function is called whenever the listening
+        socket receives a new message.
+
+        It invokes other methods to perform the necessary action and sends a
+        response message if applicable.
+        """
         logging.debug('Received message %s', msg)
         hdr = msg.header
         if not hdr.message_type == MessageType.method_call:
