@@ -79,6 +79,29 @@ def test_object_method_call(dbus_service):
 
 
 @pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
+def test_object_method_call_args(dbus_service):
+    """
+    Set a method handler that can take arguments and verify that we can call
+    it.
+    """
+    def mirror(arg):
+        return ('s', (arg,))
+
+    path = '/path'
+    object_path = 'com.example.object'
+    dbus_service.set_handler(path, 'ping', mirror)
+    dbus_service.listen()
+
+    addr = DBusAddress('/path', object_path)
+    conn = connect_and_authenticate()
+    response = conn.send_and_get_reply(
+        new_method_call(addr, 'ping', 's', ('Repeat after me',))
+    )
+    assert response == ('Repeat after me',)
+
+
+
+@pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)
 def test_object_wrong_method_call(dbus_service):
     """
     Try to call an inexistent method and verify that an error is returned.

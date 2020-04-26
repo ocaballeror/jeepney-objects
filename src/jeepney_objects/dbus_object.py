@@ -135,7 +135,8 @@ class DBusObject:
         iface = hdr.fields.get(HeaderFields.interface, None)
         try:
             method = self.get_handler(path, method, iface)
-            signature, body = method()
+            args = msg.body
+            signature, body = method(*args)
             return new_method_return(msg, signature, body)
         except Exception as error:
             return new_error(msg, str(error), signature='s',
