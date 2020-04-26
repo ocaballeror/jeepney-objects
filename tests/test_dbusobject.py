@@ -111,8 +111,10 @@ def test_object_wrong_method_call(dbus_service):
 
     dbus_service.listen()
     conn = connect_and_authenticate()
-    with pytest.raises(DBusErrorResponse):
+    with pytest.raises(DBusErrorResponse) as err:
         conn.send_and_get_reply(new_method_call(addr, 'some_method'))
+    assert err.value.name == 'com.example.object.exceptions.KeyError'
+    assert err.value.data == ("Unregistered method: 'some_method'",)
 
 
 @pytest.mark.parametrize('dbus_service', ['com.example.object'], indirect=True)

@@ -8,8 +8,8 @@ from jeepney.low_level import HeaderFields
 from jeepney.low_level import Message, MessageType
 from jeepney.integrate.blocking import connect_and_authenticate
 from jeepney.bus_messages import DBus
-from jeepney.wrappers import new_method_return
 from jeepney.wrappers import new_error
+from jeepney.wrappers import new_method_return
 
 
 class DBusInterface:
@@ -28,6 +28,36 @@ class DBusObject:
         self.conn = connect_and_authenticate(bus='SESSION')
         self.conn.router.on_unhandled = self.handle_msg
         self.listen_process = None
+
+    def new_error(self, parent, body=None, signature=None, error_name='err'):
+        """
+        Wrapper around jeepney's new_error that sets a valid error name and some
+        sensible defaults.
+
+        Body can be an exception class or a simple string instead of a tuple,
+        and the signature defaults to 's'.
+
+        >>> msg = self.new_error(reply_to, KeyError('Element not found'))
+        >>> msg.header.fields[HeaderFields.error_name]
+        'com.example.object.exceptions.TypeError'
+        >>> msg.header.fields[HeaderFields.signature]
+        's'
+        >>> msg.body
+        ('response() takes 0 positional arguments but 1 was given',))
+        """
+        if isinstance(body, Exception):
+            error_name = type(body).__name__
+            body = body.args[0]
+        if '.' not in error_name:
+            error_name = f'{self.name}.exceptions.{error_name}'
+
+        if isinstance(body, str):
+            body = (body,)
+            signature = 's'
+        elif body is None:
+            body = ()
+            signature = None
+        return new_error(parent, error_name, signature, body)
 
     def request_name(self, name):
         dbus = DBus()
@@ -63,7 +93,7 @@ class DBusObject:
         else:
             if method_name in self.interfaces[addr].methods:
                 return self.interfaces[addr].methods[method_name]
-        raise KeyError(f"Unregistered method '{method_name}'")
+        raise KeyError(f"Unregistered method: '{method_name}'")
 
     def set_property(self, path, prop_name, signature, value, interface=None):
         addr = (path, interface)
@@ -113,8 +143,7 @@ class DBusObject:
                 signature, value = self.get_property(path, prop_name, iface)
                 return new_method_return(msg, signature, value)
             except KeyError as error:
-                return new_error(msg, 'KeyError', signature='s',
-                                 body=(str(error),))
+                return self.new_error(msg, error)
         elif method == 'Set':
             _, prop_name, (signature, value) = msg.body
             self.set_property(path, prop_name, signature, value, iface)
@@ -123,8 +152,7 @@ class DBusObject:
                 properties = self.get_all_properties(path, iface)
                 return new_method_return(msg, 'a{sv}', properties)
             except KeyError as error:
-                return new_error(msg, 'KeyError', signature='s',
-                                 body=(str(error),))
+                return self.new_error(msg, error)
 
         return None
 
@@ -139,8 +167,7 @@ class DBusObject:
             signature, body = method(*args)
             return new_method_return(msg, signature, body)
         except Exception as error:
-            return new_error(msg, str(error), signature='s',
-                             body=(str(error), ))
+            return self.new_error(msg, error)
 
         return None
 
