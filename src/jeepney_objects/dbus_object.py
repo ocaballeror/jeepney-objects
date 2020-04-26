@@ -194,7 +194,7 @@ class DBusObject:
         while True:
             try:
                 self.conn.recv_messages()
-            except Exception as e:
+            except Exception:
                 pass
 
     def listen(self):
@@ -214,7 +214,7 @@ class DBusObject:
         if self.name:
             try:
                 self.release_name()
-            except Exception as e:
+            except Exception:
                 pass
         if self.listen_process and self.listen_process.is_alive():
             self.listen_process.terminate()

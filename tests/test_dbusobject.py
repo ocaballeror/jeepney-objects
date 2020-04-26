@@ -97,7 +97,6 @@ def test_object_method_call_args(dbus_service):
     assert response == ('Repeat after me',)
 
 
-
 def test_object_wrong_method_call(dbus_service):
     """
     Try to call an inexistent method and verify that an error is returned.
