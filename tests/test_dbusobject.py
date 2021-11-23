@@ -7,7 +7,7 @@ from jeepney.bus_messages import DBus
 from jeepney.wrappers import new_method_call
 from jeepney.wrappers import Properties
 from jeepney.wrappers import DBusErrorResponse
-from jeepney.integrate.blocking import connect_and_authenticate
+from jeepney.io.blocking import open_dbus_connection
 
 from jeepney_objects import DBusObject
 from jeepney_objects import DBusInterface
@@ -28,6 +28,12 @@ def dbus_service():
         yield service
     finally:
         service.stop()
+
+
+def connect_and_authenticate():
+    conn = open_dbus_connection()
+    conn._unwrap_reply = True
+    return conn
 
 
 def test_basic_init(dbus_service):

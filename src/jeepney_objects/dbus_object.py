@@ -8,7 +8,7 @@ from typing import Tuple, Dict, Callable
 
 from jeepney.low_level import HeaderFields
 from jeepney.low_level import Message, MessageType
-from jeepney.integrate.blocking import connect_and_authenticate
+from jeepney.io.blocking import open_dbus_connection
 from jeepney.bus_messages import DBus
 from jeepney.wrappers import new_error
 from jeepney.wrappers import new_method_return
@@ -102,9 +102,14 @@ class DBusObject:
     def __init__(self):
         self.name = None
         self.interfaces = {}
-        self.conn = connect_and_authenticate(bus='SESSION')
-        self.conn.router.on_unhandled = self.handle_msg
         self.listen_process = None
+        self.conn = open_dbus_connection(bus='SESSION')
+        self.conn.router.on_unhandled = self.handle_msg
+        # unwrap replies by default. this means that we get only get the
+        # reply's body from send_and_get_reply instead of the full object
+        # including headers. also ensures that a DBusErrorResponse is raised
+        # automatically if the response is an error type
+        self.conn._unwrap_reply = True
 
     def new_error(self, parent, body=None, signature=None, error_name='err'):
         """
