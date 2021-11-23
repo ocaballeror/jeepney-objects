@@ -99,12 +99,12 @@ class DBusObject:
     bus, listen for incoming messages and handle property access and method
     calls.
     """
+
     def __init__(self):
         self.name = None
         self.interfaces = {}
         self.listen_process = None
         self.conn = open_dbus_connection(bus='SESSION')
-        self.conn.router.on_unhandled = self.handle_msg
         # unwrap replies by default. this means that we get only get the
         # reply's body from send_and_get_reply instead of the full object
         # including headers. also ensures that a DBusErrorResponse is raised
@@ -175,7 +175,8 @@ class DBusObject:
         logging.info('Starting service %s', self.name)
         while True:
             try:
-                self.conn.recv_messages()
+                msg = self.conn.receive()
+                self.handle_msg(msg)
             except Exception as err:
                 logging.exception('Error receiving messages %s', err)
                 pass
