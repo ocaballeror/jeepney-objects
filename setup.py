@@ -27,7 +27,7 @@ setup(
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     python_requires='>=3.5',
-    install_requires=['jeepney', 'dataclasses;python_version<"3.7"'],
+    install_requires=['jeepney>=0.7', 'dataclasses;python_version<"3.7"'],
     tests_require=[
         'pytest',
         'pytest-cov',
