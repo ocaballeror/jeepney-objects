@@ -143,10 +143,9 @@ def test_object_get_all_properties(dbus_service):
     conn = connect_and_authenticate()
 
     response = conn.send_and_get_reply(Properties(addr).get_all())
-    assert response == ([('prop0', ('s', 'hello0')),
-                         ('prop1', ('s', 'hello1')),
-                         ('prop2', ('s', 'hello2'))], )
-
+    assert response == ({'prop0': ('s', 'hello0'),
+                         'prop1': ('s', 'hello1'),
+                         'prop2': ('s', 'hello2')}, )
 
 def test_object_wrong_property(dbus_service):
     """
