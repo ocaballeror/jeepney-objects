@@ -10,8 +10,8 @@ from jeepney.wrappers import DBusErrorResponse
 from jeepney.io.blocking import open_dbus_connection
 
 from jeepney_objects import DBusObject
-from jeepney_objects import DBusInterface
-from jeepney_objects import DBusProperty
+from jeepney_objects.dbus_interface import DBusInterface
+from jeepney_objects.dbus_property import DBusProperty
 
 
 @pytest.fixture
