@@ -13,7 +13,6 @@ from jeepney.wrappers import new_method_return
 
 from jeepney_objects.dbus_interface import DBusInterface
 from jeepney_objects.dbus_node import DBusNode
-from jeepney_objects.path_accessor import PathAccessor
 
 
 class DBusObject:
@@ -28,7 +27,7 @@ class DBusObject:
 
     def __init__(self):
         self.name = None
-        self.paths = PathAccessor(DBusNode(''))
+        self.root_node = DBusNode('')
         self.listen_process = None
         self.conn = open_dbus_connection(bus='SESSION')
         # unwrap replies by default. this means that we get only get the
@@ -130,14 +129,14 @@ class DBusObject:
             self.listen_process.terminate()
 
     def set_property(self, path, interface, prop_name, signature, value):
-        node = self.paths[path]
+        node = self.root_node.get_path(path, ensure=True)
         if interface not in node.interfaces:
             logging.debug('New interface at %s', interface)
             node.interfaces[interface] = DBusInterface(interface)
         node.interfaces[interface].set_property(prop_name, signature, value)
 
     def set_handler(self, path, interface, method_name, method):
-        node = self.paths[path]
+        node = self.root_node.get_path(path, ensure=True)
         if interface not in node.interfaces:
             logging.debug('New interface at %s', interface)
             node.interfaces[interface] = DBusInterface(interface)
@@ -153,7 +152,7 @@ class DBusObject:
         method = hdr.fields[HeaderFields.member]
         body = list(msg.body)
         iface_name = body.pop(0)
-        iface = self[path].interfaces[iface_name]
+        iface = self.root_node.get_path(path).interfaces[iface_name]
         if method == 'Get':
             prop_name = body[0]
             signature, value = iface.get_property(prop_name)
@@ -174,7 +173,7 @@ class DBusObject:
         method_name = hdr.fields[HeaderFields.member]
         iface_name = hdr.fields.get(HeaderFields.interface, None)
 
-        iface = self[path].interfaces[iface_name]
+        iface = self.root_node.get_path(path).interfaces[iface_name]
         method = iface.get_handler(method_name)
 
         signature, body = method(*msg.body)

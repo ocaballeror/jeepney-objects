@@ -19,6 +19,33 @@ class DBusNode:
     def __post_init__(self):
         self.interfaces.append(introspectable_interface())
 
+    def get_path(self, path, ensure=False):
+        """
+        Recursively find the child node that corresponds to the given path.
+
+        Arguments:
+            path: DBus path, e.g.: /org/freedesktop/DBusInterface
+            ensure: Whether to create the node if it doesn't exist.
+
+        Raises:
+            KeyError: When the path doesn't exist and ensure is False.
+        """
+        path = path.strip('/')
+        root, _, rest = path.partition('/')
+        if not root:
+            return self
+
+        for child in self.children:
+            if child.name == root:
+                return child.get_path(rest, ensure)
+
+        if ensure:
+            new = DBusNode(path)
+            self.children.append(new)
+            return new
+
+        raise KeyError("Path doesn't exist")
+
     def introspect(self):
         header = """
         <!DOCTYPE node PUBLIC
