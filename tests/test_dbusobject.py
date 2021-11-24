@@ -153,6 +153,7 @@ def test_object_get_all_properties(dbus_service):
                          'prop1': ('s', 'hello1'),
                          'prop2': ('s', 'hello2')}, )
 
+
 def test_object_wrong_property(dbus_service):
     """
     Try to get an inexistent property and verify that an error is returned.
@@ -176,7 +177,7 @@ def test_object_set_readonly_property(dbus_service):
     path = '/'
     prop = DBusProperty(name, 's', value, access='read')
     interface = DBusInterface('some.interface', properties={name: prop})
-    dbus_service.interfaces[(path, interface.name)] = interface
+    dbus_service.get_path(path, ensure=True).interfaces[interface.name] = interface
     dbus_service.listen()
 
     conn = connect_and_authenticate()
