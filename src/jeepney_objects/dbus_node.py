@@ -3,13 +3,6 @@ from typing import Dict, List
 from jeepney_objects.dbus_interface import DBusInterface
 
 
-def introspectable_interface():
-    name = "org.freedesktop.DBus.Introspectable"
-    methods = {"Introspect": DBusInterface.introspect}
-    properties = {}
-    return DBusInterface(name=name, methods=methods, properties=properties)
-
-
 @dataclass
 class DBusNode:
     name: str
@@ -17,7 +10,7 @@ class DBusNode:
     children: List["DBusNode"] = field(default_factory=lambda: [])
 
     def __post_init__(self):
-        intro = introspectable_interface()
+        intro = self.introspectable_interface()
         self.interfaces[intro.name] = intro
         self.interfaces[None] = DBusInterface(name=None)
 
@@ -47,6 +40,20 @@ class DBusNode:
             return new
 
         raise KeyError("Path doesn't exist")
+
+    def introspectable_interface(self):
+        """
+        Create a generic DBus introspectable interface that can be attached to any
+        path of any object.
+        """
+        name = "org.freedesktop.DBus.Introspectable"
+        properties = {}
+        interface = DBusInterface(name=name, properties=properties)
+
+        methods = {"Introspect": self.introspect}
+        interface.methods = methods
+
+        return interface
 
     def introspect(self):
         header = """
