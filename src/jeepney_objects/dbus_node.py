@@ -4,8 +4,8 @@ from jeepney_objects.dbus_interface import DBusInterface
 
 
 def introspectable_interface():
-    name = "org.freedestkop.DBus.Introspectable"
-    methods = {"Instrospect": DBusInterface.introspect}
+    name = "org.freedesktop.DBus.Introspectable"
+    methods = {"Introspect": DBusInterface.introspect}
     properties = {}
     return DBusInterface(name=name, methods=methods, properties=properties)
 
