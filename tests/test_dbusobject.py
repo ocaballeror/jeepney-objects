@@ -87,7 +87,7 @@ def test_object_method_call_args(dbus_service):
     dbus_service.set_handler(path, iface, 'ping', mirror)
     dbus_service.listen()
 
-    addr = DBusAddress(path, dbus_service.name)
+    addr = DBusAddress(path, dbus_service.name, iface)
     conn = connect_and_authenticate()
     response = conn.send_and_get_reply(
         new_method_call(addr, 'ping', 's', ('Repeat after me',))
@@ -99,7 +99,7 @@ def test_object_wrong_method_call(dbus_service):
     """
     Try to call an inexistent method and verify that an error is returned.
     """
-    addr = DBusAddress('/path', dbus_service.name)
+    addr = DBusAddress('/', dbus_service.name)
 
     dbus_service.listen()
     conn = connect_and_authenticate()
