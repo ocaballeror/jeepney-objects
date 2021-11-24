@@ -1,6 +1,6 @@
 import inspect
 import logging
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 from jeepney_objects.dbus_property import DBusProperty
@@ -11,7 +11,7 @@ class DBusInterface:
     """
     Represents a DBus interface as a list of methods and properties.
     """
-    name: str
+    name: Optional[str]
     methods: Dict[str, Callable] = field(default_factory=lambda: {})
     properties: Dict[Tuple[str, str], DBusProperty] = \
         field(default_factory=lambda: {})

@@ -19,6 +19,7 @@ class DBusNode:
     def __post_init__(self):
         intro = introspectable_interface()
         self.interfaces[intro.name] = intro
+        self.interfaces[None] = DBusInterface(name=None)
 
     def get_path(self, path, ensure=False):
         """
