@@ -56,11 +56,16 @@ class DBusNode:
         """
 
         msg = f"{header}\n<node>"
-        for ifa in self.interfaces:
-            msg += ifa.introspect() + '\n'
+        for ifa in self.interfaces.values():
+            _, intro = ifa.introspect()
+            intro = intro[0]
+            if ifa.name is None:
+                intro = intro.replace('<interface name="None">', '')
+                intro = intro.replace('</interface>', '')
+            msg += intro + '\n'
 
         for child in self.children:
             msg += f'<node name="{child.name}"/>'
 
-        msg += "<node/>"
-        return msg
+        msg += "</node>"
+        return 's', (msg,)

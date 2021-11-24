@@ -16,9 +16,9 @@ class DBusInterface:
     properties: Dict[str, DBusProperty] = field(default_factory=lambda: {})
 
     def introspect(self):
-        msg = ""
+        msg = f'<interface name="{self.name}">\n'
 
-        for prop in self.properties:
+        for prop in self.properties.values():
             msg += f'<property name="{prop.name}" type="{prop.signature}" acces="{prop.access}"/>\n'
 
         for name, impl in self.methods.items():
@@ -26,9 +26,11 @@ class DBusInterface:
             for arg in inspect.signature(impl).parameters:
                 msg += f'<arg name="{arg}" type="v" direction="in"/>\n'
             msg += '<arg name="value" type="v" direction="out"/>\n'
-            msg += '<method/>'
+            msg += '</method>'
 
-        return msg + '\n'
+        msg += "</interface>\n"
+
+        return 's', (msg,)
 
     def set_handler(self, method_name, handler):
         """
