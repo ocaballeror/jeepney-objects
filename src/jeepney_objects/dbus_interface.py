@@ -1,6 +1,6 @@
 import inspect
 import logging
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional
 from dataclasses import dataclass, field
 
 from jeepney_objects.dbus_property import DBusProperty
@@ -13,8 +13,7 @@ class DBusInterface:
     """
     name: Optional[str]
     methods: Dict[str, Callable] = field(default_factory=lambda: {})
-    properties: Dict[Tuple[str, str], DBusProperty] = \
-        field(default_factory=lambda: {})
+    properties: Dict[str, DBusProperty] = field(default_factory=lambda: {})
 
     def introspect(self):
         msg = ""
