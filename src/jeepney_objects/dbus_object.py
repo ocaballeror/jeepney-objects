@@ -128,15 +128,18 @@ class DBusObject:
         if self.listen_process and self.listen_process.is_alive():
             self.listen_process.terminate()
 
+    def get_path(self, path, ensure=False):
+        return self.root_node.get_path(path, ensure)
+
     def set_property(self, path, interface, prop_name, signature, value):
-        node = self.root_node.get_path(path, ensure=True)
+        node = self.get_path(path, ensure=True)
         if interface not in node.interfaces:
             logging.debug('New interface at %s', interface)
             node.interfaces[interface] = DBusInterface(interface)
         node.interfaces[interface].set_property(prop_name, signature, value)
 
     def set_handler(self, path, interface, method_name, method):
-        node = self.root_node.get_path(path, ensure=True)
+        node = self.get_path(path, ensure=True)
         if interface not in node.interfaces:
             logging.debug('New interface at %s', interface)
             node.interfaces[interface] = DBusInterface(interface)
@@ -152,7 +155,7 @@ class DBusObject:
         method = hdr.fields[HeaderFields.member]
         body = list(msg.body)
         iface_name = body.pop(0)
-        iface = self.root_node.get_path(path).interfaces[iface_name]
+        iface = self.get_path(path).interfaces[iface_name]
         if method == 'Get':
             prop_name = body[0]
             signature, value = iface.get_property(prop_name)
@@ -173,7 +176,7 @@ class DBusObject:
         method_name = hdr.fields[HeaderFields.member]
         iface_name = hdr.fields.get(HeaderFields.interface, None)
 
-        iface = self.root_node.get_path(path).interfaces[iface_name]
+        iface = self.get_path(path).interfaces[iface_name]
         method = iface.get_handler(method_name)
 
         signature, body = method(*msg.body)
