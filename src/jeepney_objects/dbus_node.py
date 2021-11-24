@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import Dict, List
 from jeepney_objects.dbus_interface import DBusInterface
 
 
@@ -13,11 +13,12 @@ def introspectable_interface():
 @dataclass
 class DBusNode:
     name: str
-    interfaces: List[DBusInterface] = field(default_factory=lambda: [])
+    interfaces: Dict[str, DBusInterface] = field(default_factory=lambda: {})
     children: List["DBusNode"] = field(default_factory=lambda: [])
 
     def __post_init__(self):
-        self.interfaces.append(introspectable_interface())
+        intro = introspectable_interface()
+        self.interfaces[intro.name] = intro
 
     def get_path(self, path, ensure=False):
         """
