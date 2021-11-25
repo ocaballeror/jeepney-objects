@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List
 from jeepney_objects.dbus_interface import DBusInterface
@@ -35,9 +36,10 @@ class DBusNode:
                 return child.get_path(rest, ensure)
 
         if ensure:
-            new = DBusNode(path)
+            logging.debug("Creating path %s", root)
+            new = DBusNode(root)
             self.children.append(new)
-            return new
+            return new.get_path(rest, ensure)
 
         raise KeyError("Path doesn't exist")
 

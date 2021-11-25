@@ -30,4 +30,18 @@ def test_ensure_path():
         root.get_path('/asdf')
 
     node = root.get_path('/asdf', ensure=True)
-    assert node == root.get_path('/asdf')
+    assert node.name == 'asdf'
+    assert root.children == [node]
+
+
+def test_ensure_nested_path():
+    root = DBusNode('')
+
+    node = root.get_path('/nested/path', ensure=True)
+    assert node.name == 'path'
+
+    assert len(root.children) == 1
+    assert root.children[0].name == 'nested'
+
+    assert len(root.children[0].children) == 1
+    assert root.children[0].children[0] == node
