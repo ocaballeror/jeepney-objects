@@ -12,8 +12,7 @@ class DBusNode:
     children: List["DBusNode"] = field(default_factory=lambda: [])
 
     def __post_init__(self):
-        intro = self.introspectable_interface()
-        self.interfaces[intro.name] = intro
+        self.interfaces = self.default_interfaces()
 
     def get_path(self, path, ensure=False):
         """
@@ -49,15 +48,30 @@ class DBusNode:
         any path of any object.
         """
         name = "org.freedesktop.DBus.Introspectable"
-        properties = {}
-        interface = DBusInterface(name=name, properties=properties)
-
-        methods = {"Introspect": self.introspect}
-        interface.methods = methods
+        interface = DBusInterface(name=name, properties={})
+        interface.set_handler("Introspect", self.introspect)
 
         return interface
 
+    def properties_interface(self):
+        name = "org.freedesktop.DBus.Properties"
+        interface = DBusInterface(name=name, properties={})
+        interface.set_handler("Get", interface.get_property)
+        interface.set_handler("GetAll", interface.get_all_properties)
+        interface.set_handler("Set", interface.set_property)
 
+        return interface
+
+    def default_interfaces(self):
+        ifaces = {}
+        for method in [
+            self.introspectable_interface,
+            self.properties_interface,
+        ]:
+            interface = method()
+            ifaces[interface.name] = interface
+
+        return ifaces
 
     def has_custom_interfaces(self) -> bool:
         """
