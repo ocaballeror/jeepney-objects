@@ -1,4 +1,4 @@
-import inspect
+from xml.etree import ElementTree as ET
 import logging
 from typing import Dict, Optional
 from dataclasses import dataclass, field
@@ -16,23 +16,16 @@ class DBusInterface:
     methods: Dict[str, DBusMethod] = field(default_factory=lambda: {})
     properties: Dict[str, DBusProperty] = field(default_factory=lambda: {})
 
-    def introspect(self):
-        msg = f'<interface name="{self.name}">\n'
+    def to_xml(self):
+        root = ET.Element('interface', {'name': self.name})
 
         for prop in self.properties.values():
-            msg += f'<property name="{prop.name}" type="{prop.signature}" access="{prop.access}"/>\n'
+            root.append(prop.to_xml())
 
-        for name, method in self.methods.items():
-            impl = method.method
-            msg += f'<method name="{name}">\n'
-            for arg in inspect.signature(impl).parameters:
-                msg += f'<arg name="{arg}" type="v" direction="in"/>\n'
-            msg += '<arg name="value" type="v" direction="out"/>\n'
-            msg += '</method>'
+        for method in self.methods.values():
+            root.append(method.to_xml())
 
-        msg += "</interface>\n"
-
-        return 's', (msg,)
+        return root
 
     def set_handler(self, method_name, handler):
         """

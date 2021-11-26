@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List
+from xml.etree import ElementTree as ET
 from jeepney_objects.dbus_interface import DBusInterface
 
 
@@ -44,8 +45,8 @@ class DBusNode:
 
     def introspectable_interface(self):
         """
-        Create a generic DBus introspectable interface that can be attached to any
-        path of any object.
+        Create a generic DBus introspectable interface that can be attached to
+        any path of any object.
         """
         name = "org.freedesktop.DBus.Introspectable"
         properties = {}
@@ -56,17 +57,7 @@ class DBusNode:
 
         return interface
 
-    def introspect_interfaces(self):
-        msg = ""
-        for ifa in self.interfaces.values():
-            _, intro = ifa.introspect()
-            intro = intro[0]
-            if ifa.name is None:
-                intro = intro.replace('<interface name="None">', '')
-                intro = intro.replace('</interface>', '')
-            msg += intro + '\n'
 
-        return msg
 
     def has_custom_interfaces(self) -> bool:
         """
@@ -81,21 +72,25 @@ class DBusNode:
         ]
         return set(default).issuperset(self.interfaces)
 
+    def to_xml(self):
+        node = ET.Element('node')
+
+        if not self.children or self.has_custom_interfaces():
+            for iface in self.interfaces.values():
+                node.append(iface.to_xml())
+
+        for child in self.children:
+            node.append(ET.Element('node', {'name': child.name}))
+
+        return node
+
     def introspect(self):
         header = """
         <!DOCTYPE node PUBLIC
         "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
         "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
         """
+        msg = header + ET.tostring(self.to_xml()).decode()
 
-        msg = f"{header}\n<node>"
-
-        if not self.children or self.has_custom_interfaces():
-            msg += self.introspect_interfaces()
-
-        for child in self.children:
-            msg += f'<node name="{child.name}"/>'
-
-        msg += "</node>"
         logging.debug("Introspect: %s", msg)
         return 's', (msg,)
