@@ -2,6 +2,7 @@
 Functions to test dbus-related functionality.
 """
 import logging
+import traceback
 from multiprocessing import Process
 
 from jeepney.low_level import HeaderFields
@@ -202,6 +203,7 @@ class DBusObject:
             else:
                 response = self._handle_method_call(msg)
         except Exception as error:
+            traceback.print_exc()
             response = self.new_error(msg, error)
 
         if isinstance(response, Message):
