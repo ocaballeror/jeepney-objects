@@ -57,14 +57,8 @@ class DBusNode:
 
         return interface
 
-    def introspect(self):
-        header = """
-        <!DOCTYPE node PUBLIC
-        "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
-        "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
-        """
-
-        msg = f"{header}\n<node>"
+    def introspect_interfaces(self):
+        msg = ""
         for ifa in self.interfaces.values():
             _, intro = ifa.introspect()
             intro = intro[0]
@@ -73,8 +67,36 @@ class DBusNode:
                 intro = intro.replace('</interface>', '')
             msg += intro + '\n'
 
+        return msg
+
+    def has_custom_interfaces(self) -> bool:
+        """
+        Determine whether this node has any new interfaces apart from the
+        default ones required by the DBus protocol.
+        """
+        default = [
+            "org.freedesktop.Application",
+            "org.freedesktop.DBus.Introspectable",
+            "org.freedesktop.Peer",
+            "org.freedesktop.Properties",
+        ]
+        return set(default).issuperset(self.interfaces)
+
+    def introspect(self):
+        header = """
+        <!DOCTYPE node PUBLIC
+        "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+        "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+        """
+
+        msg = f"{header}\n<node>"
+
+        if not self.children or self.has_custom_interfaces():
+            msg += self.introspect_interfaces()
+
         for child in self.children:
             msg += f'<node name="{child.name}"/>'
 
         msg += "</node>"
+        logging.debug("Introspect: %s", msg)
         return 's', (msg,)
