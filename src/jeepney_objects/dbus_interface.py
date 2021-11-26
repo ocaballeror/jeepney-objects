@@ -19,7 +19,7 @@ class DBusInterface:
         msg = f'<interface name="{self.name}">\n'
 
         for prop in self.properties.values():
-            msg += f'<property name="{prop.name}" type="{prop.signature}" acces="{prop.access}"/>\n'
+            msg += f'<property name="{prop.name}" type="{prop.signature}" access="{prop.access}"/>\n'
 
         for name, impl in self.methods.items():
             msg += f'<method name="{name}">\n'
