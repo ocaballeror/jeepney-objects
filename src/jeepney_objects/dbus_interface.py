@@ -1,8 +1,9 @@
 import inspect
 import logging
-from typing import Callable, Dict, Optional
+from typing import Dict, Optional
 from dataclasses import dataclass, field
 
+from jeepney_objects.dbus_method import DBusMethod
 from jeepney_objects.dbus_property import DBusProperty
 
 
@@ -12,7 +13,7 @@ class DBusInterface:
     Represents a DBus interface as a list of methods and properties.
     """
     name: Optional[str]
-    methods: Dict[str, Callable] = field(default_factory=lambda: {})
+    methods: Dict[str, DBusMethod] = field(default_factory=lambda: {})
     properties: Dict[str, DBusProperty] = field(default_factory=lambda: {})
 
     def introspect(self):
@@ -21,7 +22,8 @@ class DBusInterface:
         for prop in self.properties.values():
             msg += f'<property name="{prop.name}" type="{prop.signature}" access="{prop.access}"/>\n'
 
-        for name, impl in self.methods.items():
+        for name, method in self.methods.items():
+            impl = method.method
             msg += f'<method name="{name}">\n'
             for arg in inspect.signature(impl).parameters:
                 msg += f'<arg name="{arg}" type="v" direction="in"/>\n'
@@ -37,7 +39,7 @@ class DBusInterface:
         Create a new method and set a handler for it.
         """
         logging.debug('set_handler name=%s', method_name)
-        self.methods[method_name] = handler
+        self.methods[method_name] = DBusMethod(method=handler, name=method_name)
 
     def get_handler(self, method_name):
         """
@@ -45,7 +47,7 @@ class DBusInterface:
         """
         logging.debug('get_handler name=%s', method_name)
         if method_name in self.methods:
-            return self.methods[method_name]
+            return self.methods[method_name].method
         raise KeyError(f"Unregistered method: '{method_name}'")
 
     def set_property(self, prop_name, signature, value):
@@ -77,7 +79,7 @@ class DBusInterface:
             raise KeyError(err)
 
         prop = self.properties[prop_name]
-        return prop.signature, prop.value
+        return prop.signature, (prop.value,)
 
     def get_all_properties(self):
         """
