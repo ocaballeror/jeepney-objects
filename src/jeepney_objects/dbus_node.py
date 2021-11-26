@@ -70,7 +70,7 @@ class DBusNode:
             "org.freedesktop.DBus.Peer",
             "org.freedesktop.DBus.Properties",
         ]
-        return set(default).issuperset(self.interfaces)
+        return not set(default).issuperset(self.interfaces)
 
     def to_xml(self):
         node = ET.Element('node')
