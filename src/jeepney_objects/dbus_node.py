@@ -67,8 +67,8 @@ class DBusNode:
         default = [
             "org.freedesktop.Application",
             "org.freedesktop.DBus.Introspectable",
-            "org.freedesktop.Peer",
-            "org.freedesktop.Properties",
+            "org.freedesktop.DBus.Peer",
+            "org.freedesktop.DBus.Properties",
         ]
         return set(default).issuperset(self.interfaces)
 
